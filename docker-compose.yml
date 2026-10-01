@@ -1,0 +1,15 @@
+# Конфигурация запуска SpendSense в Docker (Docker-сервер 192.168.14.234)
+services:
+  bot:
+    build: .
+    image: spendsense:latest
+    container_name: spendsense-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Данные SQLite храним на постоянном томе (переживает перезапуск контейнера)
+      - spendsense-data:/app/data
+
+volumes:
+  spendsense-data:

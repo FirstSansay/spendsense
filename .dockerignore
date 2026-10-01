@@ -1,0 +1,14 @@
+# Исключения для сборки Docker-образа
+.git
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+.gitignore
+.gitattributes
+.gitflic-ci.yaml
+docker-compose.yml
+docs
+План-проекта.md
+README.md

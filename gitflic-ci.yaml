@@ -1,0 +1,49 @@
+# CI/CD конфигурация GitFlic (gitflic-ci.yaml)
+# Деплой выполняется на Docker-сервер 192.168.14.234, где установлен и запущен GitFlic Runner.
+#
+# Переменные CI/CD (задаются в настройках проекта GitFlic → CI/CD → Переменные):
+#   SSH_PRIVATE_KEY   — приватный SSH-ключ для доступа к серверу деплоя
+#   DEPLOY_HOST       — адрес сервера деплоя (192.168.14.234)
+#   DEPLOY_USER       — пользователь SSH на сервере деплоя
+#   BOT_TOKEN         — токен Telegram-бота
+#   OPENROUTER_API_KEY — ключ OpenRouter
+
+stages:
+  - build
+  - deploy
+
+# ---------- Этап 1: Сборка (проверка образа) ----------
+build:
+  stage: build
+  image: docker:26
+  services:
+    - docker:dind
+  script:
+    - docker build -t spendsense:ci .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+
+# ---------- Этап 2: Деплой на Docker-сервер ----------
+deploy:
+  stage: deploy
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+  script:
+    # 1. Формируем .env из секретов CI/CD (в репозитории секреты не храним)
+    - printf 'BOT_TOKEN=%s\nOPENROUTER_API_KEY=%s\nDATABASE_URL=sqlite:////app/data/spendsense.db\n' "$BOT_TOKEN" "$OPENROUTER_API_KEY" > .env.deploy
+    # 2. Копируем проект на сервер (служебные файлы исключены)
+    - rsync -az --delete --exclude '.git' --exclude '.venv' --exclude '__pycache__' --exclude '.env*' ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/spendsense/"
+    # 3. Передаём подготовленный .env
+    - scp .env.deploy "$DEPLOY_USER@$DEPLOY_HOST:/opt/spendsense/.env"
+    # 4. Собираем и запускаем контейнер на целевом сервере
+    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/spendsense && docker compose up -d --build"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+  # Раскомментируй, если раннер привязан к тегам (укажи свои):
+  # tags:
+  #   - deploy
