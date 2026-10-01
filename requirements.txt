@@ -1,0 +1,10 @@
+# Зависимости проекта. Установка: pip install -r requirements.txt
+aiogram>=3.10
+openai>=1.40
+python-dotenv>=1.0
+SQLAlchemy>=2.0
+matplotlib>=3.9
+python-dateutil>=2.9
+Pillow>=11.0
+pytesseract>=0.3.13
+python-multipart>=0.0.9
