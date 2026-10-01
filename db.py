@@ -75,6 +75,23 @@ class Transaction(Base):
     category: Mapped[Category] = relationship(back_populates="transactions")
 
 
+class CategoryRule(Base):
+    """Правило «запомненной» категории: значимые слова из описания → категория.
+
+    Служит для «обучения на правках»: если пользователь исправил категорию
+    расхода, правило запоминается и применяется в следующий раз без вызова ИИ,
+    когда в новом тексте встречаются те же значимые слова.
+    """
+
+    __tablename__ = "category_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    keyword: Mapped[str]  # значимые слова описания (нижний регистр, через пробел)
+    category: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+
 def init_db() -> None:
     """Создаёт таблицы и заполняет категории по умолчанию."""
     Base.metadata.create_all(engine)
@@ -179,3 +196,97 @@ def budget_remaining(user_id: int, start: date, end: date) -> int | None:
     if budget is None:
         return None
     return budget - month_total(user_id, start, end)
+
+
+def update_transaction_category(tx_id: int, category_name: str) -> None:
+    """Меняет категорию существующей транзакции (правка пользователя)."""
+    with SessionLocal() as session:
+        category = session.scalar(select(Category).where(Category.name == category_name))
+        if category is None:
+            category = Category(name=category_name)
+            session.add(category)
+            session.flush()
+        tx = session.get(Transaction, tx_id)
+        if tx is not None:
+            tx.category_id = category.id
+            session.commit()
+
+
+def get_transaction(tx_id: int) -> Transaction | None:
+    """Возвращает транзакцию по id (для правки категории)."""
+    with SessionLocal() as session:
+        return session.get(Transaction, tx_id)
+
+
+# Стоп-слова: не используются при обучении категориям (глаголы ввода, предлоги, валюты)
+_STOPWORDS = frozenset(
+    "в на за и с о по из у для от до к купил купила купили купил(а) потратил "
+    "потратила потратили заплатил заплатила сегодня вчера надо рублей рубля "
+    "руб р рублів гривен гривны грн".split()
+)
+
+
+def rule_keyword(text: str) -> str:
+    """Значимые слова текста (нижний регистр, без стоп-слов и чисел), через пробел.
+
+    Используется для «обучения на правках»: если в новом тексте встречается
+    хотя бы одно значимое слово из запомненного правила — применяем категорию.
+    """
+    import re
+
+    words = re.findall(r"[а-яёa-z]+", (text or "").lower())
+    significant = [w for w in words if w not in _STOPWORDS]
+    seen: set[str] = set()
+    unique = []
+    for word in significant:
+        if word not in seen:
+            seen.add(word)
+            unique.append(word)
+    return " ".join(unique)
+
+
+def remember_category_rule(user_id: int, description: str, category: str) -> None:
+    """Запоминает правило «описание → категория» (обучение на правках)."""
+    keyword = rule_keyword(description)
+    if not keyword:
+        return
+    with SessionLocal() as session:
+        existing = session.scalar(
+            select(CategoryRule).where(
+                CategoryRule.user_id == user_id,
+                CategoryRule.keyword == keyword,
+            )
+        )
+        if existing is not None:
+            existing.category = category
+        else:
+            session.add(CategoryRule(user_id=user_id, keyword=keyword, category=category))
+        session.commit()
+
+
+def find_category_rule(user_id: int, text: str) -> str | None:
+    """Возвращает запомненную категорию, если текст пересекается с правилом."""
+    words = rule_keyword(text).split()
+    if not words:
+        return None
+    with SessionLocal() as session:
+        rules = session.scalars(
+            select(CategoryRule).where(CategoryRule.user_id == user_id)
+        ).all()
+    wanted = set(words)
+    for rule in rules:
+        if wanted & set(rule.keyword.split()):
+            return rule.category
+    return None
+
+
+def export_transactions(user_id: int, start: date, end: date) -> list[tuple[str, str, str, int]]:
+    """Данные для экспорта: (дата, категория, описание, сумма) за период."""
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(Transaction.spent_on, Category.name, Transaction.description, Transaction.amount)
+            .join(Category, Transaction.category_id == Category.id)
+            .where(Transaction.user_id == user_id, Transaction.spent_on >= start, Transaction.spent_on < end)
+            .order_by(Transaction.spent_on)
+        ).all()
+    return [(str(spent_on), category, description, amount) for spent_on, category, description, amount in rows]

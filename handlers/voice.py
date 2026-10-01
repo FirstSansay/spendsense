@@ -57,7 +57,7 @@ async def cmd_voice(message: Message, bot: Bot, state: FSMContext) -> None:
         await wait_msg.edit_text("🤔 Не расслышал речь. Попробуй ещё раз.")
         return
 
-    parsed = await asyncio.to_thread(ai_service.categorize, text)
+    parsed = await asyncio.to_thread(ai_service.categorize, text, message.from_user.id)
     amount = parse_amount(parsed.get("amount"))
     if parsed.get("error") or amount is None:
         await wait_msg.edit_text(f"🤔 В сообщении не нашёл сумму: {parsed.get('error') or ''}")

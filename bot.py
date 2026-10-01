@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from handlers import budget, expenses, receipts, reports, start, voice
+from handlers import advice, budget, expenses, export, receipts, reports, start, voice
 import db
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +26,8 @@ async def main() -> None:
     dp.include_router(receipts.router)
     dp.include_router(reports.router)
     dp.include_router(budget.router)
+    dp.include_router(advice.router)
+    dp.include_router(export.router)
 
     # Сброс вебхука (на случай, если бот ранее работал как webhook).
     # Не сбрасываем ожидающие обновления: сообщения, присланные пока бот был

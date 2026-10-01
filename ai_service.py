@@ -14,11 +14,26 @@ from pathlib import Path
 from openai import OpenAI
 
 import config
+import db
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 # Паттерн «количество/вес × цена» в описании позиции: 2×120, 0.450кг*199.90, 3 х 45
 _MULT_RE = re.compile(r"([\d]+[.,]?[\d]*)\s*(?:кг\.?)?\s*[xхX×*]\s*([\d]+[.,]?[\d]*)", re.IGNORECASE)
+
+# Первое число в тексте — кандидат в «сумма расхода» (для быстрого пути без ИИ)
+AMOUNT_RE = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def extract_amount(text: str) -> int | None:
+    """Первое число в тексте как сумма в рублях (целое). None — числа нет."""
+    match = AMOUNT_RE.search(text or "")
+    if not match:
+        return None
+    try:
+        return int(round(float(match.group(0).replace(",", "."))))
+    except ValueError:
+        return None
 
 
 def _receipt_item_amount(item: dict) -> int | None:
@@ -106,13 +121,32 @@ class AIService:
             return {"error": "неожиданный формат ответа"}
         return payload
 
-    def categorize(self, text: str) -> dict:
+    def categorize(self, text: str, user_id: int | None = None) -> dict:
         """Категоризирует расход по тексту.
 
         Возвращает словарь: amount, category, description, date, error.
         Схема ответа задаётся промптом prompts/categorization.txt.
         При «пустом» ответе модели (нет суммы) — один повтор запроса.
+
+        Если user_id указан и для описания есть запомненное правило
+        (обучение на правках), категория берётся из БД БЕЗ вызова ИИ —
+        быстрее и дешевле (флаг by_rule=True).
         """
+        if user_id is not None:
+            rule_category = db.find_category_rule(user_id, text)
+            if rule_category:
+                amount = extract_amount(text)
+                if amount is not None:
+                    description = re.sub(AMOUNT_RE, "", text).strip().strip(" ,;:")
+                    return {
+                        "amount": amount,
+                        "category": rule_category,
+                        "description": description,
+                        "date": date.today().isoformat(),
+                        "error": None,
+                        "by_rule": True,
+                    }
+
         payload = self._complete_json(
             model=config.AI_MODEL,
             prompt_name="categorization.txt",
@@ -135,7 +169,19 @@ class AIService:
             "description": payload.get("description"),
             "date": payload.get("date"),
             "error": payload.get("error"),
+            "by_rule": False,
         }
+
+    def recommendations(self, summary_text: str) -> str:
+        """ИИ-рекомендации по экономии из сводки расходов (промпт recommendations.txt)."""
+        try:
+            return self._complete(
+                model=config.AI_MODEL,
+                system=self._load_prompt("recommendations.txt"),
+                user_content=summary_text,
+            ).strip()
+        except Exception as exc:
+            return f"Не удалось получить рекомендации: {exc}"
 
     def transcribe(self, audio_bytes: bytes, audio_format: str = "wav") -> str:
         """Распознавание речи (STT) через модель с аудио-входом.

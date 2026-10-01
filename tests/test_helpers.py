@@ -6,7 +6,7 @@
 import unittest
 from datetime import date
 
-from ai_service import _receipt_item_amount
+from ai_service import _receipt_item_amount, extract_amount
 from handlers.common import parse_amount, parse_date
 from handlers.receipts import _clean_items, _looks_like_receipt
 
@@ -95,6 +95,19 @@ class TestLooksLikeReceipt(unittest.TestCase):
         self.assertFalse(_looks_like_receipt("короткий текст"))
         self.assertFalse(_looks_like_receipt("213123123123"))
         self.assertFalse(_looks_like_receipt(""))
+
+
+class TestExtractAmount(unittest.TestCase):
+    """Извлечение первого числа как суммы (путь без ИИ, правила категорий)."""
+
+    def test_cases(self) -> None:
+        self.assertEqual(extract_amount("250 кофе"), 250)
+        self.assertEqual(extract_amount("купил продукты на 870"), 870)
+        self.assertEqual(extract_amount("такси 450"), 450)
+        self.assertEqual(extract_amount("2.5 кг огурцов 200"), 2)  # дробь — целая часть
+        self.assertEqual(extract_amount("без суммы"), None)
+        self.assertEqual(extract_amount(""), None)
+        self.assertEqual(extract_amount(None), None)
 
 
 if __name__ == "__main__":

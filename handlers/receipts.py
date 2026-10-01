@@ -1,8 +1,10 @@
-"""Обработчик фото чеков: OCR (tesseract) → парсинг → подтверждение.
+"""Обработчик чеков: фото, документы-изображения и PDF.
 
-Основной путь: tesseract извлекает текст с фото → промпт receipt.txt (V4 Flash)
-парсит список покупок. Если текст OCR слишком плохой — запасной путь: прямое
-распознавание изображения vision-моделью (deepseek-v4.1-flash).
+Основной путь: tesseract извлекает текст → промпт receipt.txt (V4 Flash)
+парсит список покупок. Если текст OCR слишком плохой — запасной путь:
+прямое распознавание изображения vision-моделью (deepseek-v4.1-flash).
+PDF-чеки: сначала текстовый слой, при его отсутствии — рендер первой
+страницы и стандартный путь по изображению.
 """
 
 import asyncio
@@ -61,14 +63,29 @@ def _clean_items(items: list) -> list[dict]:
     return clean
 
 
-async def _handle_receipt(message: Message, bot: Bot, state: FSMContext, image_bytes: bytes, mimetype: str) -> None:
-    db.get_or_create_user(
-        tg_id=message.from_user.id,
-        username=message.from_user.username,
-        first_name=message.from_user.full_name,
+async def _show_items_confirmation(message: Message, state: FSMContext, items: list[dict]) -> None:
+    """Показывает список покупок и кнопку сохранения (общее для фото и PDF)."""
+    total = sum(item["amount"] for item in items)
+    await state.set_state(ConfirmState.receipt)
+    await state.update_data(items=items)
+
+    lines = [f"В чеке {len(items)} позиций на {total} ₽:", ""]
+    for item in items:
+        desc = item["description"] or "—"
+        lines.append(f"• {desc} — {item['amount']} ₽ ({item['category']})")
+    await message.edit_text(
+        "\n".join(lines) + "\n\nСохранить покупки?",
+        reply_markup=confirm_keyboard("receipt"),
     )
 
-    wait_msg = await message.answer("🧾 Распознаю чек…")
+
+async def _handle_receipt(target: Message, bot: Bot, state: FSMContext, image_bytes: bytes, mimetype: str) -> None:
+    # target — сообщение бота («🧾 Распознаю чек…»), его и редактируем
+    db.get_or_create_user(
+        tg_id=target.from_user.id,
+        username=target.from_user.username,
+        first_name=target.from_user.full_name,
+    )
 
     # Основной путь: локальный OCR (tesseract) → текст → AI-парсинг
     ocr_text = await asyncio.to_thread(ocr_service.recognize, image_bytes)
@@ -81,37 +98,55 @@ async def _handle_receipt(message: Message, bot: Bot, state: FSMContext, image_b
     items = _clean_items(parsed.get("items") or [])
     if not items:
         hint = "" if _looks_like_receipt(ocr_text) else " (текст OCR слишком плохой — подключён vision)"
-        await wait_msg.edit_text(f"🤔 Не удалось распознать чек{hint}. Попробуй фото почетче и без бликов.")
+        await target.edit_text(f"🤔 Не удалось распознать чек{hint}. Попробуй фото почетче и без бликов.")
         return
 
-    total = sum(item["amount"] for item in items)
-    await state.set_state(ConfirmState.receipt)
-    await state.update_data(items=items)
-
-    lines = [f"В чеке {len(items)} позиций на {total} ₽:", ""]
-    for item in items:
-        desc = item["description"] or "—"
-        lines.append(f"• {desc} — {item['amount']} ₽ ({item['category']})")
-    await wait_msg.edit_text(
-        "\n".join(lines) + "\n\nСохранить покупки?",
-        reply_markup=confirm_keyboard("receipt"),
-    )
+    await _show_items_confirmation(target, state, items)
 
 
 @router.message(F.photo)
 async def cmd_photo(message: Message, bot: Bot, state: FSMContext) -> None:
     """Фото чека (самое большое в наборе)."""
+    wait_msg = await message.answer("🧾 Распознаю чек…")
     file_id = message.photo[-1].file_id
     image_bytes = (await bot.download(file_id)).getvalue()
-    await _handle_receipt(message, bot, state, image_bytes, mimetype="image/jpeg")
+    await _handle_receipt(wait_msg, bot, state, image_bytes, mimetype="image/jpeg")
 
 
 @router.message(F.document, F.document.mime_type.startswith("image/"))
 async def cmd_document_image(message: Message, bot: Bot, state: FSMContext) -> None:
     """Документ-изображение (сканы, сохранённые фото)."""
+    wait_msg = await message.answer("🧾 Распознаю чек…")
     image_bytes = (await bot.download(message.document.file_id)).getvalue()
     mimetype = message.document.mime_type or "image/jpeg"
-    await _handle_receipt(message, bot, state, image_bytes, mimetype=mimetype)
+    await _handle_receipt(wait_msg, bot, state, image_bytes, mimetype=mimetype)
+
+
+@router.message(F.document, F.document.mime_type == "application/pdf")
+async def cmd_document_pdf(message: Message, bot: Bot, state: FSMContext) -> None:
+    """PDF-чек: сначала текстовый слой, при его отсутствии — рендер страницы."""
+    db.get_or_create_user(
+        tg_id=message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.full_name,
+    )
+    wait_msg = await message.answer("🧾 Читаю PDF-чек…")
+    pdf_bytes = (await bot.download(message.document.file_id)).getvalue()
+
+    text_layer = await asyncio.to_thread(ocr_service.pdf_to_text, pdf_bytes)
+    if _looks_like_receipt(text_layer):
+        parsed = await asyncio.to_thread(ai_service.parse_receipt, text_layer)
+        items = _clean_items(parsed.get("items") or [])
+        if items:
+            await _show_items_confirmation(wait_msg, state, items)
+            return
+
+    # Нет текстового слоя (скан): рендерим первую страницу и идём обычным путём
+    image = await asyncio.to_thread(ocr_service.pdf_first_page_image, pdf_bytes)
+    if image is None:
+        await wait_msg.edit_text("🤔 Не удалось открыть PDF-чек.")
+        return
+    await _handle_receipt(message=wait_msg, bot=bot, state=state, image_bytes=image, mimetype="image/png")
 
 
 @router.callback_query(ConfirmState.receipt, F.data == "receipt:save")

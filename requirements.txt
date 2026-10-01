@@ -10,3 +10,5 @@ python-dateutil>=2.9
 Pillow>=11.0
 pytesseract>=0.3.13
 python-multipart>=0.0.9
+pypdf>=4.2
+pdf2image>=1.17

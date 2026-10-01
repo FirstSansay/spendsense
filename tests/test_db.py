@@ -88,6 +88,52 @@ class TestDb(unittest.TestCase):
         self.assertEqual(start, date(2026, 12, 1))
         self.assertEqual(end, date(2027, 1, 1))
 
+    def test_rule_learning_flow(self) -> None:
+        """«Обучение на правках»: правило запоминается и находится по тексту."""
+        db.get_or_create_user(555, "u555")
+        db.remember_category_rule(555, "машина кофе", "прочее")
+        self.assertEqual(db.find_category_rule(555, "купил кофе"), "прочее")
+        # Повторная правка перезаписывает правило
+        db.remember_category_rule(555, "машина кофе", "кафе и рестораны")
+        self.assertEqual(db.find_category_rule(555, "кофе"), "кафе и рестораны")
+
+    def test_rule_keyword_edge_cases(self) -> None:
+        """Ключевое слово: последнее значимое слово; пусто при отсутствии."""
+        self.assertEqual(db.rule_keyword("250 кофе"), "кофе")
+        self.assertEqual(db.rule_keyword(""), "")
+        self.assertNotEqual(db.rule_keyword("БЕНЗИН"), db.rule_keyword("кофе"))
+
+    def test_rule_isolated_per_user(self) -> None:
+        """Правила одного пользователя не применяются к другому."""
+        db.get_or_create_user(555, "a")
+        db.get_or_create_user(666, "b")
+        db.remember_category_rule(555, "абонемент", "развлечения")
+        self.assertEqual(db.find_category_rule(555, "абонемент"), "развлечения")
+        self.assertIsNone(db.find_category_rule(666, "абонемент"))
+
+    def test_update_transaction_category(self) -> None:
+        """Смена категории транзакции (правка пользователя)."""
+        db.get_or_create_user(777, "u777")
+        tx = db.add_transaction(777, 100, "прочее", "обучение", date.today())
+        db.update_transaction_category(tx.id, "образование")
+        start, end = db.current_month_range()
+        summary = dict(db.month_summary(777, start, end))
+        self.assertIn("образование", summary)
+        self.assertNotIn("прочее", summary)
+
+    def test_export_transactions(self) -> None:
+        """Экспорт: (дата, категория, описание, сумма) за период."""
+        db.get_or_create_user(888, "u888")
+        db.add_transaction(888, 45, "продукты", "хлеб", date.today())
+        start, end = db.current_month_range()
+        rows = db.export_transactions(888, start, end)
+        self.assertEqual(len(rows), 1)
+        spent_on, category, description, amount = rows[0]
+        self.assertEqual(category, "продукты")
+        self.assertEqual(description, "хлеб")
+        self.assertEqual(amount, 45)
+        self.assertIn("-", spent_on)  # дата в ISO
+
 
 if __name__ == "__main__":
     unittest.main()
