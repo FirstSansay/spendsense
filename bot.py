@@ -25,8 +25,13 @@ async def main() -> None:
     dp.include_router(reports.router)
     dp.include_router(budget.router)
 
-    # Сброс вебхука (на случай, если бот ранее работал как webhook)
-    await bot.delete_webhook(drop_pending_updates=True)
+    # Сброс вебхука (на случай, если бот ранее работал как webhook).
+    # Не сбрасываем ожидающие обновления: сообщения, присланные пока бот был
+    # недоступен, будут доставлены после восстановления соединения.
+    try:
+        await bot.delete_webhook()
+    except Exception:
+        logging.warning("Не удалось сбросить вебхук — продолжаем поллинг")
 
     await dp.start_polling(bot)
 
