@@ -7,7 +7,7 @@
 
 import json
 
-from google.auth import service_account
+from google.auth import load_credentials_from_dict
 from googleapiclient.discovery import build
 
 import config
@@ -22,7 +22,8 @@ def get_credentials():
     else:
         with open(config.GOOGLE_CREDENTIALS_PATH, "r", encoding="utf-8") as file:
             info = json.load(file)
-    return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    credentials, _project = load_credentials_from_dict(info, scopes=SCOPES)
+    return credentials
 
 
 def build_values(rows: list[tuple[str, str, str, int]]) -> list[list[str]]:
