@@ -41,6 +41,10 @@ deploy:
     - echo "BOT_TOKEN=$BOT_TOKEN" > .env
     - echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> .env
     - echo "DATABASE_URL=sqlite:////app/data/spendsense.db" >> .env
+    # Google Sheets: переменные опциональны — передаются только если заданы
+    - if [ -n "$GOOGLE_CREDENTIALS_JSON" ]; then echo "GOOGLE_CREDENTIALS_JSON=$GOOGLE_CREDENTIALS_JSON" >> .env; fi
+    - if [ -n "$GOOGLE_SHEET_ID" ]; then echo "GOOGLE_SHEET_ID=$GOOGLE_SHEET_ID" >> .env; fi
+    - if [ -n "$GOOGLE_SHEET_RANGE" ]; then echo "GOOGLE_SHEET_RANGE=$GOOGLE_SHEET_RANGE" >> .env; fi
     - docker compose up -d --build
   environment:
     name: production

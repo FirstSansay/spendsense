@@ -13,7 +13,7 @@ Telegram-бот для учёта личных расходов: приём че
 - Отчёты за месяц с графиками + **PDF-отчёт**
 - Настройка бюджета и контроль трат
 - **Рекомендации по экономии** (`/advice`)
-- **Экспорт данных в CSV** (`/export`, совместим с Google Sheets/Excel)
+- **Экспорт данных** в CSV (`/export`) и **напрямую в Google Sheets** (`/export_sheets`)
 
 ## Технологии
 
@@ -121,6 +121,7 @@ SpendSense/
 ├── db.py           # работа с базой данных (в т.ч. правила «обучения»)
 ├── ai_service.py   # обёртка над AI API (OpenRouter)
 ├── ocr_service.py  # локальный OCR (tesseract), PDF (pypdf/pdf2image)
+├── sheets_service.py  # экспорт в Google Sheets (Service Account)
 ├── handlers/       # обработчики команд, голоса, чеков, отчётов и т.д.
 ├── prompts/        # папка с промптами
 ├── tests/          # юнит-тесты
@@ -131,6 +132,22 @@ SpendSense/
 ## Библиотека промптов
 
 Все использованные промпты собраны в [docs/prompts.md](docs/prompts.md).
+
+## Экспорт в Google Sheets (`/export_sheets`)
+
+Расходы за текущий месяц записываются в Google Sheets напрямую — через **Service Account** Google (бесплатно, без лимитов, актуальных для бота).
+
+**Настройка (один раз):**
+
+1. В Google Cloud Console → создай проект → включи **Google Sheets API**.
+2. Создай **Service Account** → скачай его **JSON-ключ** (`credentials.json`).
+3. Создай таблицу Google Sheets → «Настройки доступа» → добавь **email сервисного аккаунта** (роль «Редактор»).
+4. Задай переменные окружения (в `.env` локально или в переменных CI/CD GitFlic):
+   - `GOOGLE_CREDENTIALS_JSON` — содержимое JSON-ключа одной строкой (или путь `GOOGLE_CREDENTIALS_PATH`);
+   - `GOOGLE_SHEET_ID` — ID таблицы из URL (`docs.google.com/spreadsheets/d/<ID>/edit`);
+   - `GOOGLE_SHEET_RANGE` — имя листа (по умолчанию `Sheet1`).
+
+Заголовок создаётся при первом экспорте, дальше строки дописываются в конец листа.
 
 ## Документация
 

@@ -9,6 +9,7 @@ from datetime import date
 from ai_service import _receipt_item_amount, extract_amount
 from handlers.common import parse_amount, parse_date
 from handlers.receipts import _clean_items, _looks_like_receipt
+from sheets_service import build_values
 
 
 class TestParseAmount(unittest.TestCase):
@@ -108,6 +109,20 @@ class TestExtractAmount(unittest.TestCase):
         self.assertEqual(extract_amount("без суммы"), None)
         self.assertEqual(extract_amount(""), None)
         self.assertEqual(extract_amount(None), None)
+
+
+class TestSheetValues(unittest.TestCase):
+    """Матрица значений для Google Sheets (заголовок + строки)."""
+
+    def test_build_values(self) -> None:
+        rows = [("2026-10-01", "продукты", "хлеб", 45), ("2026-10-02", "транспорт", "бензин", 300)]
+        values = build_values(rows)
+        self.assertEqual(values[0], ["дата", "категория", "описание", "сумма"])
+        self.assertEqual(len(values), 3)
+        self.assertEqual(values[1], ["2026-10-01", "продукты", "хлеб", "45"])
+
+    def test_build_values_empty(self) -> None:
+        self.assertEqual(build_values([]), [["дата", "категория", "описание", "сумма"]])
 
 
 if __name__ == "__main__":

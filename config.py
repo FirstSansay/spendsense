@@ -25,3 +25,12 @@ AI_MODEL_STT = os.getenv("AI_MODEL_STT", "qwen/qwen3.8-omni-flash")
 
 # База данных (SQLite для MVP, далее PostgreSQL)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///spendsense.db")
+
+# --- Google Sheets (экспорт через Service Account) ---
+# Учётные данные: JSON-ключ Service Account (одной строкой) или путь к файлу.
+# Либо одно, либо другое — что задано в окружении.
+GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON", "")
+GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "google_credentials.json")
+# ID таблицы из URL (docs.google.com/spreadsheets/d/<ID>/edit) и имя листа
+GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
+GOOGLE_SHEET_RANGE = os.getenv("GOOGLE_SHEET_RANGE", "Sheet1")
