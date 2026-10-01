@@ -4,8 +4,8 @@ openai>=1.40
 python-dotenv>=1.0
 SQLAlchemy>=2.0
 matplotlib>=3.9
-# Версия numpy без требования X86_V2 (совместимость со старыми CPU на сервере деплоя)
-numpy<2.5
+# numpy==2.2.6 — cp313 wheels без требования X86_V2 (совместимость со старыми CPU на сервере деплоя)
+numpy==2.2.6
 python-dateutil>=2.9
 Pillow>=11.0
 pytesseract>=0.3.13
