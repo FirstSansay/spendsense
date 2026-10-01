@@ -51,3 +51,9 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+# --- Базы данных (SQLite) ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

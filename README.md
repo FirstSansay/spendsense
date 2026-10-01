@@ -21,8 +21,10 @@ Python · aiogram 3 · SQLAlchemy (SQLite/PostgreSQL) · **OpenRouter** (еди�
 | Задача | Модель |
 |---|---|
 | Категоризация, парсинг текста, рекомендации | `deepseek/deepseek-v4-flash` |
-| Распознавание чеков (изображения) | `deepseek/deepseek-v4.1-flash` |
+| Распознавание чеков: OCR + AI-парсинг (fallback — vision) | `deepseek/deepseek-v4.1-flash` |
 | Голосовой ввод (распознавание речи) | `qwen/qwen3.8-omni-flash` |
+
+Схема распознавания чеков: фотография → OCR (`pytesseract`) → текст → промпт `prompts/receipt.txt` (V4 Flash) → список покупок. Если качество распознанного текста низкое, используется запасной путь — прямая обработка изображения моделью с vision (`deepseek/deepseek-v4.1-flash`).
 
 Названия моделей задаются в `.env` (`config.py`) — смена модели не требует правки кода.
 
@@ -127,5 +129,5 @@ SpendSense/
 
 ---
 
-Автор: <твоё имя>
+Автор: Alex Che
 Лицензия: MIT
