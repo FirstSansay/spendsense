@@ -27,7 +27,11 @@ def _looks_like_receipt(text: str) -> bool:
 
 
 def _clean_items(items: list) -> list[dict]:
-    """Фильтрует позиции чека: только с корректной суммой."""
+    """Фильтрует позиции чека: только с корректной суммой.
+
+    Если ИИ вернул количество/вес (quantity), добавляет его в описание
+    («2× молоко»), чтобы в отчёте было видно итог за несколько единиц.
+    """
     clean = []
     for item in items:
         if not isinstance(item, dict):
@@ -35,10 +39,20 @@ def _clean_items(items: list) -> list[dict]:
         amount = parse_amount(item.get("amount"))
         if amount is None or amount <= 0:
             continue
+
+        description = (item.get("description") or "").strip()
+        try:
+            quantity = float(str(item.get("quantity") or "").replace(",", "."))
+        except (TypeError, ValueError):
+            quantity = None
+        # Признак «2×120» уже есть в описании — не дублируем
+        if quantity is not None and quantity != 1.0 and not re.search(r"[xхX×*]", description):
+            description = f"{quantity:g}× {description}".strip()
+
         clean.append({
             "amount": amount,
             "category": (item.get("category") or "прочее").strip(),
-            "description": (item.get("description") or "").strip(),
+            "description": description,
         })
     return clean
 

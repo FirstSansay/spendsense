@@ -7,6 +7,7 @@ asyncio.to_thread, чтобы не блокировать event loop aiogram.
 
 import base64
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -15,6 +16,36 @@ from openai import OpenAI
 import config
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+
+# Паттерн «количество/вес × цена» в описании позиции: 2×120, 0.450кг*199.90, 3 х 45
+_MULT_RE = re.compile(r"([\d]+[.,]?[\d]*)\s*(?:кг\.?)?\s*[xхX×*]\s*([\d]+[.,]?[\d]*)", re.IGNORECASE)
+
+
+def _receipt_item_amount(item: dict) -> int | None:
+    """Итоговая сумма позиции чека в рублях (целое).
+
+    Если модель вернула цену за единицу вместо итога (типично для «2×120»),
+    пересчитываем: количество/вес × цена за единицу.
+    """
+    try:
+        amount = float(str(item.get("amount", "")).replace(",", "."))
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+    match = _MULT_RE.search(str(item.get("description") or ""))
+    if match:
+        try:
+            first = float(match.group(1).replace(",", "."))
+            second = float(match.group(2).replace(",", "."))
+        except ValueError:
+            first = second = None
+        # Если вернулась цена за единицу (second) вместо итога — перемножаем.
+        # Проверяем с запасом 1 руб. (модель может округлять цену до целых).
+        if first and second and first != 1.0:
+            product = first * second
+            if abs(amount - second) <= 1.0 and abs(amount - product) > 1.0:
+                amount = product
+    return int(round(amount))
 
 
 class AIService:
@@ -126,7 +157,7 @@ class AIService:
         if "error" in payload:
             return {"items": [], "error": payload["error"]}
         items = payload.get("items") or []
-        return {"items": items if isinstance(items, list) else []}
+        return {"items": self._normalize_receipt_items(items)}
 
     def parse_receipt_image(self, image_bytes: bytes, mimetype: str = "image/jpeg") -> dict:
         """Парсит чек напрямую по изображению (vision-модель).
@@ -145,7 +176,21 @@ class AIService:
         if "error" in payload:
             return {"items": [], "error": payload["error"]}
         items = payload.get("items") or []
-        return {"items": items if isinstance(items, list) else []}
+        return {"items": self._normalize_receipt_items(items)}
+
+    @staticmethod
+    def _normalize_receipt_items(items: list) -> list:
+        """Нормализует позиции чека: сумма — итог строки с учётом количества/веса."""
+        if not isinstance(items, list):
+            return []
+        clean = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            copy = dict(item)
+            copy["amount"] = _receipt_item_amount(item)
+            clean.append(copy)
+        return clean
 
 
 # Единый экземпляр сервиса (переиспользуется во всех обработчиках)
