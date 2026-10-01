@@ -5,6 +5,8 @@ __pycache__
 *.pyc
 .env
 .env.*
+google_credentials.json
+*credentials.json
 .gitignore
 .gitattributes
 .gitflic-ci.yaml

@@ -40,6 +40,8 @@ htmlcov/
 .env.local
 .env.*.local
 *.env
+google_credentials.json
+*credentials.json
 
 # --- IDE / ОС ---
 .vscode/
