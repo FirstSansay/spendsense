@@ -28,7 +28,7 @@ Python · aiogram 3 · SQLAlchemy (SQLite/PostgreSQL) · **OpenRouter** (еди�
 
 ## Деплой (GitFlic CI/CD)
 
-ГитFlic настроен на CI/CD. Деплой выполняет **GitFlic Runner (ci-docker-234)** на Docker-сервере **192.168.14.234**: `/var/run/docker.sock` смонтирован в задания, поэтому сборка и запуск контейнера идут напрямую через Docker (без SSH к серверу).
+GitFlic настроен на CI/CD. Деплой выполняет **GitFlic Runner** на сервере деплоя: `/var/run/docker.sock` смонтирован в задания, поэтому сборка и запуск контейнера идут напрямую через Docker (без SSH к серверу).
 
 **Как это работает:** пуш в ветку `master` запускает пайплайн `gitflic-ci.yaml`:
 1. `build` — сборка образа `spendsense:latest`;
@@ -44,7 +44,7 @@ Python · aiogram 3 · SQLAlchemy (SQLite/PostgreSQL) · **OpenRouter** (еди�
 
 Секреты попадают в контейнер через `.env`, который генерируется на стадии `deploy` (в репозитории не хранятся). Данные SQLite хранятся на постоянном томе `spendsense-data`.
 
-⚠️ **Доступ к OpenRouter:** OpenRouter блокирует NAT-IP сервера. Внешний IP Docker-сервера должен быть `195.133.83.247` (AmneziaWG-туннель активен). Проверка: `curl -s https://api.ipify.org`.
+⚠️ **Доступ к OpenRouter:** OpenRouter может блокировать запросы с NAT-IP серверов. Для работы AI-функций внешний IP сервера деплоя должен отличаться от блокируемого (например, через VPN/туннель). Проверка: `curl -s https://api.ipify.org`.
 
 ## Принципы разработки
 

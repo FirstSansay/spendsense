@@ -1,4 +1,4 @@
-# Конфигурация запуска SpendSense в Docker (Docker-сервер 192.168.14.234)
+# Конфигурация запуска SpendSense в Docker (сервер деплоя)
 services:
   bot:
     build: .
