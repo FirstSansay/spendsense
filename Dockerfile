@@ -1,10 +1,12 @@
 # Образ для приложения SpendSense
 FROM python:3.13-slim
 
-# Системные зависимости: tesseract для распознавания чеков (OCR) + русский языковой пакет
+# Системные зависимости: tesseract для OCR чеков + русский языковой пакет,
+# ffmpeg для конвертации голосовых сообщений (OGG → WAV)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-rus \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Рабочая директория и каталог для базы данных (SQLite)

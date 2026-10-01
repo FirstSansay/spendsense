@@ -1,6 +1,6 @@
 """Обработчик команды /add — добавление расхода с AI-категоризацией."""
 
-from datetime import date
+import asyncio
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -8,6 +8,7 @@ from aiogram.types import Message
 
 import db
 from ai_service import ai_service
+from handlers.common import parse_amount, parse_date
 
 router = Router(name="expenses")
 
@@ -25,28 +26,17 @@ async def cmd_add(message: Message) -> None:
         first_name=message.from_user.full_name,
     )
 
-    data = ai_service.categorize(text)
-    if data.get("error") or not data.get("amount"):
+    data = await asyncio.to_thread(ai_service.categorize, text)
+    amount = parse_amount(data.get("amount"))
+    if data.get("error") or amount is None:
         await message.answer(
             f"🤔 Не смог разобрать: {data.get('error') or 'не указана сумма'}"
         )
         return
 
-    try:
-        amount = int(round(float(data["amount"])))
-    except (TypeError, ValueError):
-        await message.answer("🤔 Не удалось определить сумму. Попробуй ещё раз: /add 250 кофе")
-        return
-
     category = data.get("category") or "прочее"
     description = (data.get("description") or "").strip()
-
-    # Дата из модели, при невалидном значении — сегодня
-    when = date.today()
-    try:
-        when = date.fromisoformat(data["date"])
-    except (TypeError, ValueError):
-        pass
+    when = parse_date(data.get("date"))
 
     db.add_transaction(
         user_id=message.from_user.id,

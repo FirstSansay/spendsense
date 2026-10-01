@@ -117,7 +117,8 @@ SpendSense/
 ├── config.py       # конфигурация (токены, модели, БД)
 ├── db.py           # работа с базой данных
 ├── ai_service.py   # обёртка над AI API (OpenRouter)
-├── handlers/       # обработчики команд
+├── ocr_service.py  # локальный OCR (tesseract) для чеков
+├── handlers/       # обработчики команд, голоса, чеков
 ├── prompts/        # папка с промптами
 ├── docs/           # документация (ТЗ, библиотека промптов)
 └── requirements.txt

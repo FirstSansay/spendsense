@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from handlers import budget, expenses, reports, start
+from handlers import budget, expenses, receipts, reports, start, voice
 import db
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +22,8 @@ async def main() -> None:
     # Регистрация обработчиков команд
     dp.include_router(start.router)
     dp.include_router(expenses.router)
+    dp.include_router(voice.router)
+    dp.include_router(receipts.router)
     dp.include_router(reports.router)
     dp.include_router(budget.router)
 
