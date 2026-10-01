@@ -7,9 +7,16 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      TZ: Europe/Moscow
     volumes:
       # Данные SQLite храним на постоянном томе (переживает перезапуск контейнера)
       - spendsense-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   spendsense-data:

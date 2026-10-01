@@ -1,49 +1,44 @@
 # CI/CD конфигурация GitFlic (gitflic-ci.yaml)
-# Деплой выполняется на Docker-сервер 192.168.14.234, где установлен и запущен GitFlic Runner.
 #
-# Переменные CI/CD (задаются в настройках проекта GitFlic → CI/CD → Переменные):
-#   SSH_PRIVATE_KEY   — приватный SSH-ключ для доступа к серверу деплоя
-#   DEPLOY_HOST       — адрес сервера деплоя (192.168.14.234)
-#   DEPLOY_USER       — пользователь SSH на сервере деплоя
-#   BOT_TOKEN         — токен Telegram-бота
-#   OPENROUTER_API_KEY — ключ OpenRouter
+# Раннер ci-docker-234 установлен на Docker-сервере 192.168.14.234.
+# Задачи выполняются в контейнерах, при этом /var/run/docker.sock смонтирован
+# в каждое задание — поэтому сборка и деплой идут напрямую через Docker
+# (без docker:dind и без SSH к серверу).
+#
+# Переменные CI/CD (задаются в GitFlic: проект → CI/CD → Переменные):
+#   BOT_TOKEN          — токен Telegram-бота
+#   OPENROUTER_API_KEY — ключ OpenRouter (маскированная)
+#   (опционально) AI_MODEL, AI_MODEL_OCR, AI_MODEL_STT, DATABASE_URL
 
 stages:
   - build
   - deploy
 
-# ---------- Этап 1: Сборка (проверка образа) ----------
+# ---------- Сборка образа ----------
 build:
   stage: build
-  image: docker:26
-  services:
-    - docker:dind
+  image: docker:latest
   script:
-    - docker build -t spendsense:ci .
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
+    - docker build -t spendsense:latest .
 
-# ---------- Этап 2: Деплой на Docker-сервер ----------
+# ---------- Деплой на Docker-сервер ----------
 deploy:
   stage: deploy
-  image: alpine:3.20
-  before_script:
-    - apk add --no-cache openssh-client rsync
-    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
-    - chmod 600 ~/.ssh/id_rsa
-    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+  image: docker:latest
   script:
-    # 1. Формируем .env из секретов CI/CD (в репозитории секреты не храним)
-    - printf 'BOT_TOKEN=%s\nOPENROUTER_API_KEY=%s\nDATABASE_URL=sqlite:////app/data/spendsense.db\n' "$BOT_TOKEN" "$OPENROUTER_API_KEY" > .env.deploy
-    # 2. Копируем проект на сервер (служебные файлы исключены)
-    - rsync -az --delete --exclude '.git' --exclude '.venv' --exclude '__pycache__' --exclude '.env*' ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/spendsense/"
-    # 3. Передаём подготовленный .env
-    - scp .env.deploy "$DEPLOY_USER@$DEPLOY_HOST:/opt/spendsense/.env"
-    # 4. Собираем и запускаем контейнер на целевом сервере
-    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/spendsense && docker compose up -d --build"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
-  # Раскомментируй, если раннер привязан к тегам (укажи свои):
-  # tags:
-  #   - deploy
+    # Секреты передаются в контейнер через .env, сгенерированный на стадии deploy
+    # (в репозитории секреты не хранятся)
+    - echo "BOT_TOKEN=$BOT_TOKEN" > .env
+    - echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> .env
+    - echo "DATABASE_URL=sqlite:////app/data/spendsense.db" >> .env
+    - docker compose up -d --build
+  environment:
+    name: production
+
+# ---------- Этап тестов (появится, когда будут готовы тесты) ----------
+# test:
+#   stage: test
+#   image: python:3.12-slim
+#   script:
+#     - pip install -r requirements.txt
+#     - python -m unittest discover tests -v

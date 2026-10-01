@@ -28,23 +28,23 @@ Python · aiogram 3 · SQLAlchemy (SQLite/PostgreSQL) · **OpenRouter** (еди�
 
 ## Деплой (GitFlic CI/CD)
 
-Сервер GitFlic настроен на CI/CD. Цель деплоя — **Docker-сервер 192.168.14.234**, на котором установлен и запущен GitFlic Runner.
+ГитFlic настроен на CI/CD. Деплой выполняет **GitFlic Runner (ci-docker-234)** на Docker-сервере **192.168.14.234**: `/var/run/docker.sock` смонтирован в задания, поэтому сборка и запуск контейнера идут напрямую через Docker (без SSH к серверу).
 
 **Как это работает:** пуш в ветку `master` запускает пайплайн `gitflic-ci.yaml`:
-1. `build` — проверка сборки Docker-образа;
-2. `deploy` — копирование проекта на сервер, запись `.env` из секретов CI/CD, запуск `docker compose up -d --build`.
+1. `build` — сборка образа `spendsense:latest`;
+2. `deploy` — генерация `.env` из секретов CI/CD и запуск `docker compose up -d --build`.
 
 **Переменные CI/CD** (задаются в GitFlic → CI/CD → Переменные проекта):
 
 | Переменная | Назначение |
 |---|---|
-| `SSH_PRIVATE_KEY` | приватный SSH-ключ доступа к серверу деплоя |
-| `DEPLOY_HOST` | адрес сервера деплоя (`192.168.14.234`) |
-| `DEPLOY_USER` | SSH-пользователь на сервере |
 | `BOT_TOKEN` | токен Telegram-бота |
-| `OPENROUTER_API_KEY` | ключ OpenRouter |
+| `OPENROUTER_API_KEY` | ключ OpenRouter (маскированная) |
+| `AI_MODEL`, `AI_MODEL_OCR`, `AI_MODEL_STT` | опционально — переопределить модели |
 
-Приложение запускается в контейнере (`docker-compose.yml`), данные SQLite хранятся на постоянном томе `spendsense-data`.
+Секреты попадают в контейнер через `.env`, который генерируется на стадии `deploy` (в репозитории не хранятся). Данные SQLite хранятся на постоянном томе `spendsense-data`.
+
+⚠️ **Доступ к OpenRouter:** OpenRouter блокирует NAT-IP сервера. Внешний IP Docker-сервера должен быть `195.133.83.247` (AmneziaWG-туннель активен). Проверка: `curl -s https://api.ipify.org`.
 
 ## Принципы разработки
 
