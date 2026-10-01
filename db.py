@@ -3,7 +3,7 @@
 Для MVP используется SQLite, далее возможен переход на PostgreSQL (config.DATABASE_URL).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import ForeignKey, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
@@ -42,7 +42,7 @@ class User(Base):
     username: Mapped[str | None]
     first_name: Mapped[str | None]
     monthly_budget: Mapped[int | None] = mapped_column(default=None)  # лимит на месяц, руб.
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
 
@@ -69,7 +69,7 @@ class Transaction(Base):
     amount: Mapped[int]  # сумма в рублях (целое число)
     description: Mapped[str] = mapped_column(default="")
     spent_on: Mapped[date] = mapped_column("date", default=date.today)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     user: Mapped[User] = relationship(back_populates="transactions")
     category: Mapped[Category] = relationship(back_populates="transactions")

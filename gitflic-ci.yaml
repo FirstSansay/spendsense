@@ -38,7 +38,7 @@ deploy:
 # ---------- Этап тестов (появится, когда будут готовы тесты) ----------
 # test:
 #   stage: test
-#   image: python:3.12-slim
+#   image: python:3.13-slim
 #   script:
 #     - pip install -r requirements.txt
 #     - python -m unittest discover tests -v
