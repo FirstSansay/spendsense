@@ -16,14 +16,57 @@ Telegram-бот для учёта личных расходов: приём че
 
 Python · aiogram 3 · SQLAlchemy (SQLite/PostgreSQL) · AI API (OpenAI/GigaChat) · OCR · TTS/STT
 
+## Виртуальное окружение (.venv)
+
+Проект использует виртуальное окружение `.venv` — оно уже создано в папке проекта и не попадает в git (см. `.gitignore`). Используй его при каждом запуске и установке зависимостей.
+
+**Активация:**
+
+```bash
+# Linux / macOS
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# Windows (CMD)
+.venv\Scripts\activate.bat
+```
+
+После активации в начале строки терминала появляется `(.venv)` — окружение активно.
+
+**Проверка версии Python в окружении:**
+
+```bash
+.venv/bin/python --version   # Linux / macOS
+```
+
+**Установка зависимостей** (при первичной настройке или после изменения `requirements.txt`):
+
+```bash
+pip install -r requirements.txt
+```
+
+**Деактивация окружения:**
+
+```bash
+deactivate
+```
+
+**Пересоздание окружения (если что-то сломалось):**
+
+```bash
+rm -rf .venv
+python3 -m venv .venv
+```
+
 ## Запуск
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # подставь свои токены
-python bot.py
+source .venv/bin/activate          # активировать окружение
+pip install -r requirements.txt    # установить зависимости
+cp .env.example .env               # подставить свои токены
+python bot.py                      # запустить бота
 ```
 
 Не забудь создать бота у [@BotFather](https://t.me/BotFather) и получить токен.
