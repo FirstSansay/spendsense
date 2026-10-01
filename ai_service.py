@@ -56,11 +56,17 @@ class AIService:
 
     @property
     def client(self) -> OpenAI:
-        """Ленивое создание клиента (нужно, чтобы импорт не требовал ключа)."""
+        """Ленивое создание клиента (нужно, чтобы импорт не требовал ключа).
+
+        timeout/retries: жёсткий лимит ожидания и один повтор — зависшие
+        запросы на нестабильном канале не должны «зависать» бот надолго.
+        """
         if self._client is None:
             self._client = OpenAI(
                 api_key=config.OPENROUTER_API_KEY,
                 base_url=config.AI_API_BASE_URL,
+                timeout=30.0,
+                max_retries=1,
             )
         return self._client
 
@@ -105,6 +111,7 @@ class AIService:
 
         Возвращает словарь: amount, category, description, date, error.
         Схема ответа задаётся промптом prompts/categorization.txt.
+        При «пустом» ответе модели (нет суммы) — один повтор запроса.
         """
         payload = self._complete_json(
             model=config.AI_MODEL,
@@ -112,6 +119,15 @@ class AIService:
             user_content=text,
             placeholders={"{today}": date.today().isoformat()},
         )
+        if payload.get("error") or payload.get("amount") is None:
+            # Единичный сбой модели/сети — повторяем один раз перед тем,
+            # как сообщить пользователю об ошибке
+            payload = self._complete_json(
+                model=config.AI_MODEL,
+                prompt_name="categorization.txt",
+                user_content=text,
+                placeholders={"{today}": date.today().isoformat()},
+            )
         # Нормализация: гарантируем наличие всех ключей
         return {
             "amount": payload.get("amount"),

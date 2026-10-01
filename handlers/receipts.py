@@ -23,7 +23,11 @@ router = Router(name="receipts")
 
 def _looks_like_receipt(text: str) -> bool:
     """Текст похож на чек: есть буквы и хотя бы одна цифра."""
-    return len(text) >= 10 and bool(re.search(r"\d", text))
+    return (
+        len(text) >= 10
+        and bool(re.search(r"\d", text))
+        and bool(re.search(r"[А-Яа-яA-Za-z]", text))
+    )
 
 
 def _clean_items(items: list) -> list[dict]:

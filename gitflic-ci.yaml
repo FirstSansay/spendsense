@@ -12,6 +12,7 @@
 
 stages:
   - build
+  - test
   - deploy
 
 # ---------- Сборка образа ----------
@@ -20,6 +21,15 @@ build:
   image: docker:latest
   script:
     - docker build -t spendsense:latest .
+
+# ---------- Юнит-тесты (запускаются без сети и ключей) ----------
+test:
+  stage: test
+  image: python:3.13-slim
+  script:
+    - pip install -r requirements.txt
+    - export DATABASE_URL=sqlite:////tmp/spendsense_ci.db
+    - python -m unittest discover tests -v
 
 # ---------- Деплой на Docker-сервер ----------
 deploy:
@@ -34,11 +44,3 @@ deploy:
     - docker compose up -d --build
   environment:
     name: production
-
-# ---------- Этап тестов (появится, когда будут готовы тесты) ----------
-# test:
-#   stage: test
-#   image: python:3.13-slim
-#   script:
-#     - pip install -r requirements.txt
-#     - python -m unittest discover tests -v

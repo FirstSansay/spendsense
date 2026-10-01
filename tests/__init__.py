@@ -1,0 +1,1 @@
+# Пакет тестов SpendSense (unittest, запуск: python -m unittest discover tests -v)
