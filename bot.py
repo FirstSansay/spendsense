@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, MenuButtonCommands
 
 from config import BOT_TOKEN
 from handlers import advice, budget, expenses, export, export_sheets, receipts, reports, start, voice
@@ -29,8 +29,12 @@ MENU_COMMANDS = [
 
 
 async def _setup_bot_menu(bot: Bot) -> None:
-    """Устанавливает команды кнопки «Меню» (по умолчанию для всех чатов)."""
+    """Устанавливает команды кнопки «Меню» и гарантирует её наличие.
+
+    Тип кнопки «commands» показывает список команд под полем ввода.
+    """
     await bot.set_my_commands(MENU_COMMANDS)
+    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
 
 async def main() -> None:
