@@ -5,7 +5,7 @@
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import ForeignKey, create_engine, func, select
+from sqlalchemy import ForeignKey, create_engine, delete, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 from config import DATABASE_URL
@@ -290,3 +290,57 @@ def export_transactions(user_id: int, start: date, end: date) -> list[tuple[str,
             .order_by(Transaction.spent_on)
         ).all()
     return [(str(spent_on), category, description, amount) for spent_on, category, description, amount in rows]
+
+
+def user_reset_summary(user_id: int) -> dict:
+    """Сводка данных пользователя для предпросмотра перед сбросом (/reset)."""
+    with SessionLocal() as session:
+        tx_count, tx_sum = session.execute(
+            select(func.count(Transaction.id), func.sum(Transaction.amount)).where(
+                Transaction.user_id == user_id
+            )
+        ).one()
+        rules_count = session.scalar(
+            select(func.count(CategoryRule.id)).where(CategoryRule.user_id == user_id)
+        ) or 0
+        user = session.get(User, user_id)
+    return {
+        "user_exists": user is not None,
+        "transactions": int(tx_count or 0),
+        "amount": int(tx_sum or 0),
+        "rules": int(rules_count or 0),
+        "budget": user.monthly_budget if user else None,
+    }
+
+
+def reset_user(user_id: int) -> dict:
+    """Полный сброс данных пользователя: траты, правила обучения, бюджет и профиль.
+
+    Категории по умолчанию остаются (они общие для всех пользователей).
+    Возвращает сводку удалённого. Действие необратимо — вызывается только
+    после явного подтверждения пользователем.
+    """
+    with SessionLocal() as session:
+        tx_count, tx_sum = session.execute(
+            select(func.count(Transaction.id), func.sum(Transaction.amount)).where(
+                Transaction.user_id == user_id
+            )
+        ).one()
+        rules_count = session.scalar(
+            select(func.count(CategoryRule.id)).where(CategoryRule.user_id == user_id)
+        ) or 0
+        user = session.get(User, user_id)
+        budget = user.monthly_budget if user else None
+
+        session.execute(delete(Transaction).where(Transaction.user_id == user_id))
+        session.execute(delete(CategoryRule).where(CategoryRule.user_id == user_id))
+        if user is not None:
+            session.delete(user)
+        session.commit()
+
+    return {
+        "transactions": int(tx_count or 0),
+        "amount": int(tx_sum or 0),
+        "rules": int(rules_count or 0),
+        "budget": budget,
+    }

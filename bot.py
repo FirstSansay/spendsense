@@ -10,7 +10,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, MenuButtonCommands
 
 from config import BOT_TOKEN
-from handlers import advice, budget, expenses, export, export_sheets, receipts, reports, start, voice
+from handlers import advice, budget, expenses, export, export_sheets, receipts, reports, reset, start, voice
 import db
 
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +25,7 @@ MENU_COMMANDS = [
     BotCommand(command="advice", description="Советы по экономии"),
     BotCommand(command="export", description="Выгрузка данных в CSV"),
     BotCommand(command="export_sheets", description="Экспорт в Google Sheets"),
+    BotCommand(command="reset", description="Сбросить свои данные"),
 ]
 
 
@@ -56,6 +57,7 @@ async def main() -> None:
     dp.include_router(advice.router)
     dp.include_router(export.router)
     dp.include_router(export_sheets.router)
+    dp.include_router(reset.router)
 
     # Сброс вебхука (на случай, если бот ранее работал как webhook).
     # Не сбрасываем ожидающие обновления: сообщения, присланные пока бот был

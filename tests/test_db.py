@@ -134,6 +134,34 @@ class TestDb(unittest.TestCase):
         self.assertEqual(amount, 45)
         self.assertIn("-", spent_on)  # дата в ISO
 
+    def test_reset_summary_and_reset(self) -> None:
+        """Сводка перед сбросом и сам сброс: профиль, траты, бюджет, правила."""
+        db.get_or_create_user(999, "u999")
+        db.add_transaction(999, 200, "транспорт", "такси", date.today())
+        db.add_transaction(999, 150, "продукты", "хлеб", date.today())
+        db.set_budget(999, 5000)
+        db.remember_category_rule(999, "абонемент", "развлечения")
+
+        info = db.user_reset_summary(999)
+        self.assertEqual(info["transactions"], 2)
+        self.assertEqual(info["amount"], 350)
+        self.assertEqual(info["budget"], 5000)
+        self.assertEqual(info["rules"], 1)
+        self.assertTrue(info["user_exists"])
+
+        removed = db.reset_user(999)
+        self.assertEqual(removed["transactions"], 2)
+        self.assertEqual(removed["budget"], 5000)
+        self.assertEqual(removed["rules"], 1)
+
+        # После сброса пользователя и его данных нет, но категории остались
+        after = db.user_reset_summary(999)
+        self.assertFalse(after["user_exists"])
+        self.assertEqual(after["transactions"], 0)
+        self.assertEqual(after["budget"], None)
+        start, end = db.current_month_range()
+        self.assertEqual(db.month_total(999, start, end), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
