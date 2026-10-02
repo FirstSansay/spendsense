@@ -14,7 +14,14 @@ from aiogram import Bot
 
 import db
 from ai_service import ai_service
-from handlers.common import ConfirmState, confirm_keyboard, parse_amount, parse_date
+from handlers.common import (
+    ConfirmState,
+    bold,
+    confirm_keyboard,
+    esc,
+    parse_amount,
+    parse_date,
+)
 
 router = Router(name="voice")
 
@@ -50,7 +57,7 @@ async def cmd_voice(message: Message, bot: Bot, state: FSMContext) -> None:
         wav_data = await asyncio.to_thread(_ogg_to_wav, ogg_data)
         text = await asyncio.to_thread(ai_service.transcribe, wav_data, "wav")
     except Exception as exc:
-        await wait_msg.edit_text(f"🤔 Не удалось разобрать голосовое: {exc}")
+        await wait_msg.edit_text(f"🤔 Не удалось разобрать голосовое: {esc(exc)}")
         return
 
     if not text:
@@ -60,7 +67,9 @@ async def cmd_voice(message: Message, bot: Bot, state: FSMContext) -> None:
     parsed = await asyncio.to_thread(ai_service.categorize, text, message.from_user.id)
     amount = parse_amount(parsed.get("amount"))
     if parsed.get("error") or amount is None:
-        await wait_msg.edit_text(f"🤔 В сообщении не нашёл сумму: {parsed.get('error') or ''}")
+        await wait_msg.edit_text(
+            f"🤔 В сообщении не нашёл сумму: {esc(parsed.get('error') or '')}"
+        )
         return
 
     category = parsed.get("category") or "прочее"
@@ -74,9 +83,9 @@ async def cmd_voice(message: Message, bot: Bot, state: FSMContext) -> None:
         when=parse_date(parsed.get("date")),
     )
 
-    reply = f"🎤 Распознал: {amount} ₽ — {category}"
+    reply = f"🎤 Распознал: {bold(amount)} ₽ - {bold(category)}"
     if description:
-        reply += f" ({description})"
+        reply += f" ({esc(description)})"
     await wait_msg.edit_text(
         reply + "\n\nСохранить расход?",
         reply_markup=confirm_keyboard("voice"),

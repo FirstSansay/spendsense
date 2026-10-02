@@ -9,6 +9,7 @@ from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
 
 import db
+from handlers.common import bold
 
 router = Router(name="export")
 
@@ -45,5 +46,8 @@ async def cmd_export(message: Message) -> None:
     total = sum(amount for *_, amount in rows)
     await message.answer_document(
         BufferedInputFile(_to_csv(rows), filename=filename),
-        caption=f"📄 Экспорт расходов за {start.strftime('%B %Y')}: {len(rows)} записей на {total} ₽.",
+        caption=(
+            f"📄 Экспорт расходов за {start.strftime('%B %Y')}: "
+            f"{bold(len(rows))} записей на {bold(total)} ₽."
+        ),
     )

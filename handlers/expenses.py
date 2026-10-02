@@ -15,7 +15,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import db
 from ai_service import ai_service
-from handlers.common import parse_amount, parse_date
+from handlers.common import bold, code, esc, parse_amount, parse_date
 
 router = Router(name="expenses")
 
@@ -38,7 +38,9 @@ def _categories_keyboard() -> InlineKeyboardMarkup:
 async def cmd_add(message: Message, state: FSMContext) -> None:
     text = message.text.removeprefix("/add").strip()
     if not text:
-        await message.answer("Укажи расход, например: /add 250 кофе")
+        await message.answer(
+            f"Укажи расход, например: {code('/add 250 кофе')}"
+        )
         return
 
     db.get_or_create_user(
@@ -51,7 +53,7 @@ async def cmd_add(message: Message, state: FSMContext) -> None:
     amount = parse_amount(data.get("amount"))
     if data.get("error") or amount is None:
         await message.answer(
-            f"🤔 Не смог разобрать: {data.get('error') or 'не указана сумма'}"
+            f"🤔 Не смог разобрать: {esc(data.get('error') or 'не указана сумма')}"
         )
         return
 
@@ -73,13 +75,13 @@ async def cmd_add(message: Message, state: FSMContext) -> None:
     start, end = db.current_month_range()
     remaining = db.budget_remaining(message.from_user.id, start, end)
 
-    reply = f"✅ {amount} ₽ — {category}"
+    reply = f"✅ {bold(amount)} ₽ - {bold(category)}"
     if data.get("by_rule"):
         reply += " (по запомненному правилу)"
     if description:
-        reply += f" ({description})"
+        reply += f" ({esc(description)})"
     if remaining is not None:
-        reply += f"\nОстаток бюджета за месяц: {remaining} ₽"
+        reply += f"\nОстаток бюджета за месяц: {bold(remaining)} ₽"
     await message.answer(reply, reply_markup=_fix_keyboard())
 
 
@@ -99,7 +101,9 @@ async def fix_category_set(callback: CallbackQuery, state: FSMContext) -> None:
     tx_id = data.get("last_tx_id")
 
     if tx_id is None:
-        await callback.message.edit_text("Не знаю, какой расход исправить — добавь ещё раз через /add.")
+        await callback.message.edit_text(
+            "Не знаю, какой расход исправить - добавь ещё раз через /add."
+        )
         await callback.answer()
         return
 
@@ -109,7 +113,9 @@ async def fix_category_set(callback: CallbackQuery, state: FSMContext) -> None:
     description = tx.description if tx else ""
     db.remember_category_rule(callback.from_user.id, description, category)
 
-    await callback.message.edit_text(f"✅ Категория изменена на «{category}» и запомнена.")
+    await callback.message.edit_text(
+        f"✅ Категория изменена на {bold(category)} и запомнена."
+    )
     await callback.answer()
 
 

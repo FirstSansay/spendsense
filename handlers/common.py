@@ -4,11 +4,29 @@
 это требование ТЗ (F7, F8): ИИ может ошибиться, человек решает.
 """
 
+import html as _html
 from datetime import date
 
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
+def esc(text: object) -> str:
+    """Экранирует текст для Telegram HTML-разметки (& < >)."""
+    return _html.escape(str(text), quote=False)
+
+
+def bold(text: object) -> str:
+    return f"<b>{esc(text)}</b>"
+
+
+def italic(text: object) -> str:
+    return f"<i>{esc(text)}</i>"
+
+
+def code(text: object) -> str:
+    return f"<code>{esc(text)}</code>"
 
 
 class ConfirmState(StatesGroup):

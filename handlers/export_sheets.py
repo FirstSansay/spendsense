@@ -15,6 +15,7 @@ from aiogram.types import Message
 import config
 import db
 import sheets_service
+from handlers.common import bold, esc
 
 router = Router(name="export_sheets")
 
@@ -50,7 +51,8 @@ async def cmd_export_sheets(message: Message) -> None:
         link = f"https://docs.google.com/spreadsheets/d/{config.GOOGLE_SHEET_ID}/edit"
         await wait_msg.edit_text(
             f"✅ Расходы за {start.strftime('%B %Y')} выгружены в таблицу "
-            f"({len(rows)} записей, {detail}).\nОткрыть: {link}"
+            f"({bold(len(rows))} записей, {esc(detail)}).\n"
+            f"Открыть: <a href=\"{link}\">таблицу</a>"
         )
     else:
-        await wait_msg.edit_text(f"🤔 Не удалось выгрузить: {detail}")
+        await wait_msg.edit_text(f"🤔 Не удалось выгрузить: {esc(detail)}")

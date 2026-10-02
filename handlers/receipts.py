@@ -18,7 +18,13 @@ from aiogram.types import CallbackQuery, Message
 import db
 import ocr_service
 from ai_service import ai_service
-from handlers.common import ConfirmState, confirm_keyboard, parse_amount
+from handlers.common import (
+    ConfirmState,
+    bold,
+    confirm_keyboard,
+    esc,
+    parse_amount,
+)
 
 router = Router(name="receipts")
 
@@ -69,10 +75,10 @@ async def _show_items_confirmation(message: Message, state: FSMContext, items: l
     await state.set_state(ConfirmState.receipt)
     await state.update_data(items=items)
 
-    lines = [f"В чеке {len(items)} позиций на {total} ₽:", ""]
+    lines = [f"В чеке {len(items)} позиций на {bold(total)} ₽:", ""]
     for item in items:
         desc = item["description"] or "—"
-        lines.append(f"• {desc} — {item['amount']} ₽ ({item['category']})")
+        lines.append(f"• {esc(desc)} - {bold(item['amount'])} ₽ ({esc(item['category'])})")
     await message.edit_text(
         "\n".join(lines) + "\n\nСохранить покупки?",
         reply_markup=confirm_keyboard("receipt"),
@@ -97,7 +103,7 @@ async def _handle_receipt(target: Message, bot: Bot, state: FSMContext, image_by
 
     items = _clean_items(parsed.get("items") or [])
     if not items:
-        hint = "" if _looks_like_receipt(ocr_text) else " (текст OCR слишком плохой — подключён vision)"
+        hint = "" if _looks_like_receipt(ocr_text) else " (текст OCR слишком плохой - подключён vision)"
         await target.edit_text(f"🤔 Не удалось распознать чек{hint}. Попробуй фото почетче и без бликов.")
         return
 
@@ -164,7 +170,9 @@ async def save_receipt(callback: CallbackQuery, state: FSMContext) -> None:
         )
     await state.clear()
     total = sum(item["amount"] for item in items)
-    await callback.message.edit_text(f"✅ Сохранено позиций: {len(items)} на {total} ₽.")
+    await callback.message.edit_text(
+        f"✅ Сохранено позиций: {len(items)} на {bold(total)} ₽."
+    )
     await callback.answer()
 
 

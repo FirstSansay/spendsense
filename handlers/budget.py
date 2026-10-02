@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 import db
+from handlers.common import bold
 
 router = Router(name="budget")
 
@@ -27,7 +28,9 @@ async def cmd_budget(message: Message) -> None:
             return
         start, end = db.current_month_range()
         remaining = db.budget_remaining(message.from_user.id, start, end)
-        await message.answer(f"💰 Текущий бюджет: {current} ₽ (остаток: {remaining} ₽)")
+        await message.answer(
+            f"💰 Текущий бюджет: {bold(current)} ₽ (остаток: {bold(remaining)} ₽)"
+        )
         return
 
     if not arg.isdigit() or int(arg) <= 0:
@@ -39,4 +42,6 @@ async def cmd_budget(message: Message) -> None:
 
     start, end = db.current_month_range()
     spent = db.month_total(message.from_user.id, start, end)
-    await message.answer(f"💰 Бюджет на месяц: {amount} ₽. Уже потрачено: {spent} ₽.")
+    await message.answer(
+        f"💰 Бюджет на месяц: {bold(amount)} ₽. Уже потрачено: {bold(spent)} ₽."
+    )

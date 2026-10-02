@@ -19,6 +19,7 @@ from aiogram.types import BufferedInputFile, CallbackQuery, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 import db
+from handlers.common import bold, esc
 
 router = Router(name="reports")
 
@@ -36,13 +37,25 @@ def _report_data(user_id: int) -> tuple[list[tuple[str, int]], int, int | None]:
 
 
 def _report_lines(rows: list[tuple[str, int]], total: int, budget: int | None) -> list[str]:
-    """Текстовые строки отчёта (категории, итог, бюджет)."""
+    """Текстовые строки отчёта для PDF (без HTML-разметки)."""
     lines = [f"• {category}: {amount} ₽" for category, amount in rows]
     lines.append("")
     lines.append(f"💰 Итого: {total} ₽")
     if budget:
         lines.append(f"Бюджет: {budget} ₽ (остаток: {budget - total} ₽)")
     return lines
+
+
+def _report_caption(rows: list[tuple[str, int]], total: int, budget: int | None) -> str:
+    """Подпись к графику в чате (Telegram HTML: суммы и категории жирным)."""
+    lines = ["📊 Отчёт за текущий месяц:", ""]
+    for category, amount in rows:
+        lines.append(f"• {esc(category)}: {bold(amount)} ₽")
+    lines.append("")
+    lines.append(f"💰 Итого: {bold(total)} ₽")
+    if budget:
+        lines.append(f"Бюджет: {bold(budget)} ₽ (остаток: {bold(budget - total)} ₽)")
+    return "\n".join(lines)
 
 
 def _plot(ax, rows: list[tuple[str, int]]) -> None:
@@ -109,7 +122,7 @@ async def cmd_report(message: Message) -> None:
         await message.answer("📭 За этот месяц расходов пока нет. Добавь первую: /add 250 кофе")
         return
 
-    caption = "\n".join(["📊 Отчёт за текущий месяц:", ""] + _report_lines(rows, total, budget))
+    caption = _report_caption(rows, total, budget)
     image = _build_chart_png(rows)
     await message.answer_photo(
         BufferedInputFile(image, filename="report.png"),
