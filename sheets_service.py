@@ -34,6 +34,21 @@ def build_values(rows: list[tuple[str, str, str, int]]) -> list[list[str]]:
     return values
 
 
+def _first_sheet_title(service, spreadsheet_id: str) -> str:
+    """Имя первой вкладки таблицы (не зависит от локали: Sheet1 / Лист1)."""
+    try:
+        meta = service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id, fields="sheets.properties.title"
+        ).execute()
+        for sheet in meta.get("sheets", []):
+            title = sheet.get("properties", {}).get("title")
+            if title:
+                return title
+    except Exception:
+        pass
+    return config.GOOGLE_SHEET_RANGE
+
+
 def export_month(spreadsheet_id: str, rows: list[tuple[str, str, str, int]]) -> tuple[bool, str]:
     """Записывает расходы в Google Sheets. Возвращает (успех, сообщение).
 
@@ -44,7 +59,7 @@ def export_month(spreadsheet_id: str, rows: list[tuple[str, str, str, int]]) -> 
         creds = get_credentials()
         service = build("sheets", "v4", credentials=creds)
         values_api = service.spreadsheets().values()
-        sheet = config.GOOGLE_SHEET_RANGE
+        sheet = _first_sheet_title(service, spreadsheet_id)
 
         # Проверяем, есть ли уже заголовок в A1
         existing = values_api.get(
