@@ -1,8 +1,11 @@
 """Обработчик команды /export_sheets — выгрузка расходов в Google Sheets.
 
+Каждому пользователю создаётся ОТДЕЛЬНЫЙ лист (имя — username или user_<id>),
+в него записывается вся история расходов пользователя (перезапись, без дублей).
+
 Требует настройки (переменные окружения / .env):
   GOOGLE_CREDENTIALS_JSON или GOOGLE_CREDENTIALS_PATH — ключ Service Account;
-  GOOGLE_SHEET_ID — ID таблицы (из URL); GOOGLE_SHEET_RANGE — имя листа.
+  GOOGLE_SHEET_ID — ID таблицы (из URL).
 Таблицу нужно открыть для доступа email сервисного аккаунта (редактор).
 """
 
@@ -36,21 +39,24 @@ async def cmd_export_sheets(message: Message) -> None:
         )
         return
 
-    start, end = db.current_month_range()
-    rows = db.export_transactions(message.from_user.id, start, end)
+    # Личный лист пользователя + вся его история расходов
+    title = sheets_service.sheet_title(
+        message.from_user.username, message.from_user.first_name, message.from_user.id
+    )
+    rows = db.export_all_transactions(message.from_user.id)
     if not rows:
-        await message.answer("📭 За этот месяц расходов нет — экспортировать нечего.")
+        await message.answer("📭 Расходов пока нет - экспортировать нечего.")
         return
 
-    wait_msg = await message.answer("☁️ Выгружаю в Google Sheets…")
+    wait_msg = await message.answer("☁️ Выгружаю в свой лист Google Sheets…")
     ok, detail = await asyncio.to_thread(
-        sheets_service.export_month, config.GOOGLE_SHEET_ID, rows
+        sheets_service.export_user_sheet, config.GOOGLE_SHEET_ID, title, rows
     )
 
     if ok:
         link = f"https://docs.google.com/spreadsheets/d/{config.GOOGLE_SHEET_ID}/edit"
         await wait_msg.edit_text(
-            f"✅ Расходы за {start.strftime('%B %Y')} выгружены в таблицу "
+            f"✅ Расходы записаны в твой лист <b>{esc(title)}</b> "
             f"({bold(len(rows))} записей, {esc(detail)}).\n"
             f"Открыть: <a href=\"{link}\">таблицу</a>"
         )

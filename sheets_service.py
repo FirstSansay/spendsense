@@ -1,11 +1,16 @@
 """Экспорт расходов в Google Sheets через Service Account.
 
+В итоговой таблице каждому пользователю соответствует ОТДЕЛЬНЫЙ лист
+(имя — username или «user_<id>»). При каждом экспорте лист пользователя
+полностью перезаписывается: заголовок + все его расходы. Это исключает
+дубликаты строк при повторных экспортах.
+
 Учётные данные — JSON-ключ Service Account (google-auth), доступ к таблице
 даётся по email этого аккаунта («Настройки доступа» в Google Sheets).
-Данные дописываются в конец листа; заголовок создаётся при первом экспорте.
 """
 
 import json
+import re
 
 from google.auth import load_credentials_from_dict
 from googleapiclient.discovery import build
@@ -13,6 +18,19 @@ from googleapiclient.discovery import build
 import config
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+# Символы, запрещённые в именах листов Google Sheets
+_INVALID_SHEET_CHARS = re.compile(r"[\[\]:*?/\\\x00-\x1f]")
+
+
+def sheet_title(username: str | None, first_name: str | None, user_id: int) -> str:
+    """Безопасное имя листа для пользователя: username, иначе first_name, иначе user_<id>.
+
+    Google Sheets: имя до 100 символов, нельзя [' ] : * ? / \\  и пустые имена.
+    """
+    base = (username or first_name or "")[:50]
+    base = _INVALID_SHEET_CHARS.sub("_", base).strip(" _.")
+    return base or f"user_{user_id}"
 
 
 def get_credentials():
@@ -34,51 +52,48 @@ def build_values(rows: list[tuple[str, str, str, int]]) -> list[list[str]]:
     return values
 
 
-def _first_sheet_title(service, spreadsheet_id: str) -> str:
-    """Имя первой вкладки таблицы (не зависит от локали: Sheet1 / Лист1)."""
-    try:
-        meta = service.spreadsheets().get(
-            spreadsheetId=spreadsheet_id, fields="sheets.properties.title"
-        ).execute()
-        for sheet in meta.get("sheets", []):
-            title = sheet.get("properties", {}).get("title")
-            if title:
-                return title
-    except Exception:
-        pass
-    return config.GOOGLE_SHEET_RANGE
+def _ensure_sheet(service, spreadsheet_id: str, title: str) -> tuple[bool, str]:
+    """Проверяет наличие листа с именем title; при отсутствии — создаёт."""
+    meta = service.spreadsheets().get(
+        spreadsheetId=spreadsheet_id, fields="sheets.properties.title"
+    ).execute()
+    titles = {s.get("properties", {}).get("title") for s in meta.get("sheets", [])}
+    if title in titles:
+        return True, ""
+    body = {"requests": [{"addSheet": {"properties": {"title": title}}}]}
+    service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+    return True, "лист создан"
 
 
-def export_month(spreadsheet_id: str, rows: list[tuple[str, str, str, int]]) -> tuple[bool, str]:
-    """Записывает расходы в Google Sheets. Возвращает (успех, сообщение).
+def export_user_sheet(
+    spreadsheet_id: str,
+    title: str,
+    rows: list[tuple[str, str, str, int]],
+) -> tuple[bool, str]:
+    """Записывает расходы пользователя в его лист (перезапись).
 
-    Если в листе ещё нет заголовка — создаём его вместе с данными,
-    иначе дописываем строки в конец.
+    Создаёт лист, если его нет; очищает его и пишет заголовок + все расходы.
+    Возвращает (успех, сообщение).
     """
     try:
         creds = get_credentials()
         service = build("sheets", "v4", credentials=creds)
+        ok, detail = _ensure_sheet(service, spreadsheet_id, title)
+        if not ok:
+            return False, detail
+
         values_api = service.spreadsheets().values()
-        sheet = _first_sheet_title(service, spreadsheet_id)
-
-        # Проверяем, есть ли уже заголовок в A1
-        existing = values_api.get(
-            spreadsheetId=spreadsheet_id, range=f"{sheet}!A1:D1"
-        ).execute().get("values") or []
-        has_header = bool(existing) and existing[0] and existing[0][0] == "дата"
-
-        body = {
-            "values": build_values(rows) if not has_header else build_values(rows)[1:],
-            "majorDimension": "ROWS",
-        }
-        result = values_api.append(
-            spreadsheetId=spreadsheet_id,
-            range=f"{sheet}!A1",
-            valueInputOption="USER_ENTERED",
-            insertDataOption="INSERT_ROWS",
-            body=body,
+        # Очистка листа — убираем остатки от предыдущих экспортов
+        values_api.clear(
+            spreadsheetId=spreadsheet_id, range=f"{title}!A:Z", body={}
         ).execute()
-        updated = result.get("updates", {}).get("updatedRows", 0)
-        return True, f"дописано строк: {updated}"
+        # Запись заголовка и всех расходов
+        values_api.update(
+            spreadsheetId=spreadsheet_id,
+            range=f"{title}!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": build_values(rows), "majorDimension": "ROWS"},
+        ).execute()
+        return True, f"строк: {len(rows) + 1} (заголовок + {len(rows)})"
     except Exception as exc:  # нет ключа, нет сети, недостаточно прав и т.п.
         return False, str(exc)

@@ -292,6 +292,18 @@ def export_transactions(user_id: int, start: date, end: date) -> list[tuple[str,
     return [(str(spent_on), category, description, amount) for spent_on, category, description, amount in rows]
 
 
+def export_all_transactions(user_id: int) -> list[tuple[str, str, str, int]]:
+    """Вся история расходов пользователя (для персонального листа в Google Sheets)."""
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(Transaction.spent_on, Category.name, Transaction.description, Transaction.amount)
+            .join(Category, Transaction.category_id == Category.id)
+            .where(Transaction.user_id == user_id)
+            .order_by(Transaction.spent_on)
+        ).all()
+    return [(str(spent_on), category, description, amount) for spent_on, category, description, amount in rows]
+
+
 def user_reset_summary(user_id: int) -> dict:
     """Сводка данных пользователя для предпросмотра перед сбросом (/reset)."""
     with SessionLocal() as session:

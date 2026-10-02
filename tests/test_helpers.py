@@ -9,7 +9,7 @@ from datetime import date
 from ai_service import _receipt_item_amount, extract_amount
 from handlers.common import md_to_html, parse_amount, parse_date
 from handlers.receipts import _clean_items, _looks_like_receipt
-from sheets_service import build_values
+from sheets_service import build_values, sheet_title
 
 
 class TestParseAmount(unittest.TestCase):
@@ -143,6 +143,26 @@ class TestMdToHtml(unittest.TestCase):
 
     def test_special_chars_escaped(self) -> None:
         self.assertEqual(md_to_html("3 < 5 & 7"), "3 &lt; 5 &amp; 7")
+
+
+class TestSheetTitle(unittest.TestCase):
+    """Безопасное имя листа для пользователя (раздельный учёт)."""
+
+    def test_username(self) -> None:
+        self.assertEqual(sheet_title("alex_che", "Alex", 42), "alex_che")
+
+    def test_fallback_to_first_name(self) -> None:
+        self.assertEqual(sheet_title(None, "Alex Che", 42), "Alex Che")
+
+    def test_fallback_to_user_id(self) -> None:
+        self.assertEqual(sheet_title(None, None, 424242), "user_424242")
+
+    def test_forbidden_characters_sanitized(self) -> None:
+        self.assertEqual(sheet_title("a/b:c", "x", 1), "a_b_c")
+        self.assertEqual(sheet_title("[bad]?*", "x", 1), "bad")
+
+    def test_empty_title_sanitized(self) -> None:
+        self.assertEqual(sheet_title("///", "///", 7), "user_7")
 
 
 if __name__ == "__main__":

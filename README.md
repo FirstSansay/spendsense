@@ -118,7 +118,7 @@ SpendSense/
 Все использованные промпты собраны в [docs/prompts.md](docs/prompts.md).
 
 ## Экспорт в Google Sheets (`/export_sheets`)
-Расходы за текущий месяц записываются в Google Sheets напрямую - через **Service Account** Google (бесплатно, без лимитов, актуальных для бота).
+Расходы записываются в Google Sheets напрямую - через **Service Account** Google (бесплатно, без лимитов, актуальных для бота). **Каждому пользователю бота соответствует отдельный лист** в общей таблице (название - username или `user_<id>`), в лист пишется вся история расходов пользователя. Повторный экспорт перезаписывает лист - дубликатов не возникает.
 
 **Настройка (один раз):**
 1. В Google Cloud Console → создай проект → включи **Google Sheets API**.
@@ -126,10 +126,7 @@ SpendSense/
 3. Создай таблицу Google Sheets → "Настройки доступа" → добавь **email сервисного аккаунта** (роль "Редактор").
 4. Задай переменные окружения (в `.env` локально или в переменных CI/CD GitFlic):
    - `GOOGLE_CREDENTIALS_JSON` - содержимое JSON-ключа одной строкой (или путь `GOOGLE_CREDENTIALS_PATH`);
-   - `GOOGLE_SHEET_ID` - ID таблицы из URL (`docs.google.com/spreadsheets/d/<ID>/edit`);
-   - `GOOGLE_SHEET_RANGE` - имя листа (по умолчанию `Sheet1`).
-
-Заголовок создаётся при первом экспорте, дальше строки дописываются в конец листа.
+   - `GOOGLE_SHEET_ID` - ID таблицы из URL (`docs.google.com/spreadsheets/d/<ID>/edit`).
 
 ## Документация
 - [Техническое задание](docs/ТЗ.md)

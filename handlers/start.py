@@ -47,7 +47,7 @@ async def cmd_help(message: Message) -> None:
         f"{code('/advice')} - ИИ-рекомендации по экономии\n\n"
         "📤 <b>Экспорт:</b>\n"
         f"{code('/export')} - выгрузить данные в CSV\n"
-        f"{code('/export_sheets')} - записать расходы в Google Sheets\n\n"
+        f"{code('/export_sheets')} - записать такие же расходы в Google Sheets (свой лист)\n\n"
         "🔧 <b>Управление данными:</b>\n"
         f"{code('/reset')} - полный сброс твоих данных (с подтверждением)\n\n"
         "Просто попробуй - всё считается само! 💸"
