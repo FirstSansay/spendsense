@@ -5,6 +5,7 @@
 """
 
 import html as _html
+import re
 from datetime import date
 
 from aiogram.fsm.state import State, StatesGroup
@@ -27,6 +28,22 @@ def italic(text: object) -> str:
 
 def code(text: object) -> str:
     return f"<code>{esc(text)}</code>"
+
+
+def md_to_html(text: str) -> str:
+    """Конвертирует минимальное подмножество Markdown в Telegram HTML.
+
+    Используется для ответов ИИ (рекомендации), если модель всё же добавила
+    разметку: **жирный**, *курсив*, списки «- »/«* » → HTML + «• ».
+    """
+    result = _html.escape(str(text), quote=False)
+    # **жирный**
+    result = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", result, flags=re.S)
+    # *курсив* (не трогаем одиночные звёздочки вокруг)
+    result = re.sub(r"(?<!\*)\*([^*\n]+?)\*(?!\*)", r"<i>\1</i>", result)
+    # буллеты в начале строк: "- " / "* " → "• "
+    result = re.sub(r"^[*-]\s+", "• ", result, flags=re.M)
+    return result
 
 
 class ConfirmState(StatesGroup):

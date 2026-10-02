@@ -7,7 +7,7 @@ import unittest
 from datetime import date
 
 from ai_service import _receipt_item_amount, extract_amount
-from handlers.common import parse_amount, parse_date
+from handlers.common import md_to_html, parse_amount, parse_date
 from handlers.receipts import _clean_items, _looks_like_receipt
 from sheets_service import build_values
 
@@ -123,6 +123,26 @@ class TestSheetValues(unittest.TestCase):
 
     def test_build_values_empty(self) -> None:
         self.assertEqual(build_values([]), [["дата", "категория", "описание", "сумма"]])
+
+
+class TestMdToHtml(unittest.TestCase):
+    """Конвертация Markdown-фрагментов ответов ИИ в Telegram HTML."""
+
+    def test_bold_italic_and_bullets(self) -> None:
+        src = "- **Сократите «прочее» (9800 ₽).**\n- *Совет* ниже\n- **Итог**: 100 & 200"
+        out = md_to_html(src)
+        self.assertIn("<b>Сократите «прочее» (9800 ₽).</b>", out)
+        self.assertIn("<i>Совет</i>", out)
+        self.assertIn("<b>Итог</b>", out)
+        self.assertIn("&amp;", out)  # спецсимволы экранированы
+        self.assertTrue(out.startswith("• "))
+
+    def test_plain_text_unchanged(self) -> None:
+        src = "Просто текст без разметки."
+        self.assertEqual(md_to_html(src), "Просто текст без разметки.")
+
+    def test_special_chars_escaped(self) -> None:
+        self.assertEqual(md_to_html("3 < 5 & 7"), "3 &lt; 5 &amp; 7")
 
 
 if __name__ == "__main__":

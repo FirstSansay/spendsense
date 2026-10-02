@@ -13,7 +13,7 @@ from aiogram.types import CallbackQuery, Message
 
 import db
 from ai_service import ai_service
-from handlers.common import esc
+from handlers.common import md_to_html
 
 router = Router(name="advice")
 
@@ -42,7 +42,7 @@ async def _send_advice(user_id: int, target: Message | CallbackQuery) -> None:
         await target.answer("📭 За этот месяц расходов ещё нет — сначала добавь несколько трат.")
         return
     reply = await asyncio.to_thread(ai_service.recommendations, text)
-    await target.answer(f"💡 <b>Рекомендации по экономии:</b>\n\n{esc(reply)}")
+    await target.answer(f"💡 <b>Рекомендации по экономии:</b>\n\n{md_to_html(reply)}")
 
 
 @router.message(Command("advice"))
