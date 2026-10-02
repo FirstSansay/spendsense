@@ -2,12 +2,12 @@
 #
 # Раннер GitFlic установлен на Docker-сервере деплоя.
 # Задачи выполняются в контейнерах, при этом /var/run/docker.sock смонтирован
-# в каждое задание — поэтому сборка и деплой идут напрямую через Docker
+# в каждое задание - поэтому сборка и деплой идут напрямую через Docker
 # (без docker:dind и без SSH к серверу).
 #
 # Переменные CI/CD (задаются в GitFlic: проект → CI/CD → Переменные):
-#   BOT_TOKEN          — токен Telegram-бота
-#   OPENROUTER_API_KEY — ключ OpenRouter (маскированная)
+#   BOT_TOKEN          - токен Telegram-бота
+#   OPENROUTER_API_KEY - ключ OpenRouter (маскированная)
 #   (опционально) AI_MODEL, AI_MODEL_OCR, AI_MODEL_STT, DATABASE_URL
 
 stages:
@@ -41,7 +41,7 @@ deploy:
     - echo "BOT_TOKEN=$BOT_TOKEN" > .env
     - echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> .env
     - echo "DATABASE_URL=sqlite:////app/data/spendsense.db" >> .env
-    # Google Sheets: переменные опциональны — передаются только если заданы
+    # Google Sheets: переменные опциональны - передаются только если заданы
     - if [ -n "$GOOGLE_CREDENTIALS_JSON" ]; then echo "GOOGLE_CREDENTIALS_JSON=$GOOGLE_CREDENTIALS_JSON" >> .env; fi
     - if [ -n "$GOOGLE_SHEET_ID" ]; then echo "GOOGLE_SHEET_ID=$GOOGLE_SHEET_ID" >> .env; fi
     - if [ -n "$GOOGLE_SHEET_RANGE" ]; then echo "GOOGLE_SHEET_RANGE=$GOOGLE_SHEET_RANGE" >> .env; fi
