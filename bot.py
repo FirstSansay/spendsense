@@ -7,12 +7,30 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 from config import BOT_TOKEN
 from handlers import advice, budget, expenses, export, export_sheets, receipts, reports, start, voice
 import db
 
 logging.basicConfig(level=logging.INFO)
+
+# Команды кнопки «Меню» Telegram — соответствуют функционалу проекта
+MENU_COMMANDS = [
+    BotCommand(command="start", description="Приветствие и начало работы"),
+    BotCommand(command="help", description="Справка по командам"),
+    BotCommand(command="add", description="Записать расход: /add 250 кофе"),
+    BotCommand(command="report", description="Отчёт за месяц с графиком"),
+    BotCommand(command="budget", description="Задать бюджет: /budget 30000"),
+    BotCommand(command="advice", description="Советы по экономии"),
+    BotCommand(command="export", description="Выгрузка данных в CSV"),
+    BotCommand(command="export_sheets", description="Экспорт в Google Sheets"),
+]
+
+
+async def _setup_bot_menu(bot: Bot) -> None:
+    """Устанавливает команды кнопки «Меню» (по умолчанию для всех чатов)."""
+    await bot.set_my_commands(MENU_COMMANDS)
 
 
 async def main() -> None:
@@ -42,6 +60,12 @@ async def main() -> None:
         await bot.delete_webhook()
     except Exception:
         logging.warning("Не удалось сбросить вебхук — продолжаем поллинг")
+
+    # Кнопка «Меню» с командами проекта
+    try:
+        await _setup_bot_menu(bot)
+    except Exception:
+        logging.warning("Не удалось установить меню команд")
 
     await dp.start_polling(bot)
 
